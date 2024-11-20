@@ -1,0 +1,56 @@
+cmake_minimum_required(VERSION 3.20)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+set(PROJECT_NAME "kbDaw")
+set(VERSION "0.1")
+
+project("${PROJECT_NAME}" VERSION "${VERSION}")
+
+#Compile commands, useful for some IDEs like VS-Code
+set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+
+include(CPM)
+
+CPMAddPackage(
+    NAME wxWidgets
+    URL "https://github.com/wxWidgets/wxWidgets/releases/download/v3.2.6/wxWidgets-3.2.6.zip"
+    VERSION 3.2.6
+    OPTIONS "SHARED=0")
+
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Define a variable containing a list of source files for the project
+set(SRC_FILES
+    main.cpp
+)
+
+if(WIN32)
+    # Include a RC file for windows
+    list(APPEND SRC_FILES ./project.rc)
+elseif(APPLE)
+    # Add an icon for the apple .app file
+    list(APPEND SRC_FILES ../../src/osx/carbon/wxmac.icns)
+endif()
+
+# Define the build target for the executable
+add_executable(${PROJECT_NAME} WIN32 MACOSX_BUNDLE ${SRC_FILES})
+
+# Link executable to the wxWidgets target
+target_link_libraries(${PROJECT_NAME} wx::core wx::base)
+
+if(MSVC)
+    # Use manifest from wx.rc
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        COMPILE_FLAGS "/DwxUSE_RC_MANIFEST"
+        LINK_FLAGS "/MANIFEST:NO"
+    )
+elseif(APPLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        RESOURCE "../../src/osx/carbon/wxmac.icns"
+        MACOSX_BUNDLE_ICON_FILE wxmac.icns
+        MACOSX_BUNDLE_COPYRIGHT "Copyright wxWidgets"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "org.wxwidgets.minimal"
+    )
+endif()
