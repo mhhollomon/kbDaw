@@ -1,4 +1,3 @@
-
 # CPM.cmake - CMake's missing package manager
 # ===========================================
 # See https://github.com/cpm-cmake/CPM.cmake for usage and update instructions.
@@ -43,7 +42,7 @@ if(NOT COMMAND cpm_message)
   endfunction()
 endif()
 
-set(CURRENT_CPM_VERSION 1.0.0-development-version)
+set(CURRENT_CPM_VERSION 0.40.2)
 
 get_filename_component(CPM_CURRENT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}" REALPATH)
 if(CPM_DIRECTORY)

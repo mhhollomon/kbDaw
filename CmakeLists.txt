@@ -4,6 +4,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(PROJECT_NAME "kbDaw")
 set(VERSION "0.1")
 
+option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
+
 project("${PROJECT_NAME}" VERSION "${VERSION}")
 
 #Compile commands, useful for some IDEs like VS-Code
@@ -24,6 +26,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Define a variable containing a list of source files for the project
 set(SRC_FILES
     main.cpp
+    ./lib/AppFrame.cpp
 )
 
 if(WIN32)
@@ -39,6 +42,8 @@ add_executable(${PROJECT_NAME} WIN32 MACOSX_BUNDLE ${SRC_FILES})
 
 # Link executable to the wxWidgets target
 target_link_libraries(${PROJECT_NAME} wx::core wx::base)
+
+target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
 if(MSVC)
     # Use manifest from wx.rc
