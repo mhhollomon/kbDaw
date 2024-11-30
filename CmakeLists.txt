@@ -1,15 +1,22 @@
 cmake_minimum_required(VERSION 3.20)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(PROJECT_NAME "kbDaw")
-set(VERSION "0.1")
+set(PROJECT_VERSION "0.1")
 
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 
-project("${PROJECT_NAME}" VERSION "${VERSION}")
+project("${PROJECT_NAME}" VERSION "${PROJECT_VERSION}"
+    DESCRIPTION "DAW that makes use of the keyboard"
+    LANGUAGES "CXX")
 
 #Compile commands, useful for some IDEs like VS-Code
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+#set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(CPM)
 
@@ -17,16 +24,92 @@ CPMAddPackage(
     NAME wxWidgets
     URL "https://github.com/wxWidgets/wxWidgets/releases/download/v3.2.6/wxWidgets-3.2.6.zip"
     VERSION 3.2.6
-    OPTIONS "SHARED=0")
+    OPTIONS "SHARED=0"
+)
+
+CPMAddPackage(
+    Name nanoid_cpp
+    URL https://github.com/mcmikecreations/nanoid_cpp/archive/refs/heads/master.zip
+    VERSION 2.1.0
+    OPTIONS "BUILD_TESTS OFF" "BUILD_EXAMPLES OFF"
+)
+
+CPMAddPackage(
+  GITHUB_REPOSITORY jarro2783/cxxopts
+  VERSION 2.2.1
+  OPTIONS "CXXOPTS_BUILD_EXAMPLES NO" "CXXOPTS_BUILD_TESTS NO" "CXXOPTS_ENABLE_INSTALL YES"
+)
+
+CPMAddPackage("gh:mhhollomon/simpleConfig@1.0.0")
+
+# ---- SQLite3
+
+CPMAddPackage(
+    NAME sqlite3
+    URL https://sqlite.org/2024/sqlite-amalgamation-3470100.zip
+    VERSION 3.47.1
+    DOWNLOAD_ONLY True
+)
+message("sqlite src dir = ${sqlite3_SOURCE_DIR} ")
+add_library(sqlite3 OBJECT)
+
+target_include_directories(sqlite3
+  INTERFACE
+    $<BUILD_INTERFACE:${sqlite3_SOURCE_DIR}>
+)
+
+target_sources(sqlite3
+    PRIVATE
+        ${sqlite3_SOURCE_DIR}/sqlite3.c
+)
+
+if (MSVC)
+    list(APPEND sqlite3_COMPILE_FLAGS "/D SQLITE_USE_URI=1")
+else()
+    list(APPEND sqlite3_COMPILE_FLAGS "-DSQLITE_USE_URI=1")
+endif()
+
+set_target_properties(sqlite3 PROPERTIES
+    COMPILE_FLAGS ${sqlite3_COMPILE_FLAGS}
+)
 
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(SQLITE_VERSION_NUMBER 3470100)
+
+# ---- END of SQLite3
+
+# ---- SQLiteModernCpp
+
+CPMAddPackage(
+    DOWNLOAD_ONLY True
+    GITHUB_REPOSITORY SqliteModernCpp/sqlite_modern_cpp
+    GIT_TAG 6e3009973025e0016d5573529067714201338c80
+)
+
+# CPMAddPackage(
+#   GITHUB_REPOSITORY SqliteModernCpp/sqlite_modern_cpp
+#   VERSION 3.2
+#   DOWNLOAD_ONLY
+# )
+
+
+message("sqlite_modern_cpp src dir = ${sqlite_modern_cpp_SOURCE_DIR} ")
+add_library(sqlite_modern_cpp INTERFACE)
+
+target_include_directories(sqlite_modern_cpp
+  INTERFACE
+    $<BUILD_INTERFACE:${sqlite_modern_cpp_SOURCE_DIR}/hdr>
+)
+
+
+# ---- END of sqlite_modern_cpp
+
+add_subdirectory(lib)
 
 # Define a variable containing a list of source files for the project
 set(SRC_FILES
     main.cpp
-    ./lib/AppFrame.cpp
 )
 
 if(WIN32)
@@ -40,10 +123,10 @@ endif()
 # Define the build target for the executable
 add_executable(${PROJECT_NAME} WIN32 MACOSX_BUNDLE ${SRC_FILES})
 
-# Link executable to the wxWidgets target
-target_link_libraries(${PROJECT_NAME} wx::core wx::base)
-
-target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/lib")
+# Links
+# sqlite3 is here just to force the link to succeed. Not sure why when
+# it is in the list for model which uses it.
+target_link_libraries(${PROJECT_NAME} wx::core wx::base cxxopts lib-include Model AudioEngine GUI sqlite3)
 
 if(MSVC)
     # Use manifest from wx.rc
@@ -55,7 +138,7 @@ elseif(APPLE)
     set_target_properties(${PROJECT_NAME} PROPERTIES
         RESOURCE "../../src/osx/carbon/wxmac.icns"
         MACOSX_BUNDLE_ICON_FILE wxmac.icns
-        MACOSX_BUNDLE_COPYRIGHT "Copyright wxWidgets"
-        MACOSX_BUNDLE_GUI_IDENTIFIER "org.wxwidgets.minimal"
+        MACOSX_BUNDLE_COPYRIGHT "Copyright Mark Hollomon"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.codevamping.kbdaw"
     )
 endif()

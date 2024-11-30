@@ -9,7 +9,12 @@
     #include "wx/wx.h"
 #endif
 
-#include "AppFrame.hpp"
+#include "GUI/AppFrame.hpp"
+
+#include "cxxopts.hpp"
+#include "AudioEngine/AudioEngine.hpp"
+
+#include "wx/log.h"
 
 // ----------------------------------------------------------------------------
 // resources
@@ -21,10 +26,27 @@
     #include "../sample.xpm"
 #endif
 
-class kbDAWApp : public wxApp
-{
+auto parse_cl(int argc, char**argv) {
+
+    cxxopts::Options options("kbDAW", "fancy stuff!");
+
+    options.add_options()
+        ( "c,config", "Configuration file", cxxopts::value<std::string>())
+        ( "project", "Project file", cxxopts::value<std::string>()->default_value(""))
+        ;
+
+    options.parse_positional({"project"});
+    
+    return options.parse(argc, argv);
+}
+
+class kbDAWApp : public wxApp {
+    AudioEngine *audio_engine_ = nullptr;
+    std::unique_ptr<std::thread> audio_thread_;
+
 public:
     virtual bool OnInit() override;
+    virtual int OnExit() override;
 };
 
 
@@ -34,20 +56,44 @@ wxIMPLEMENT_APP(kbDAWApp);
 // 'Main program' equivalent: the program execution "starts" here
 bool kbDAWApp::OnInit()
 {
-    // call the base class initialization method, currently it only parses a
-    // few common command-line options but it could be do more in the future
-    if ( !wxApp::OnInit() )
-        return false;
+    // Don't call - handle the command line ourselves.
+    //if ( !wxApp::OnInit() )
+    //    return false;
 
-    // create the main application window
-    AppFrame *frame = new AppFrame("kbDAW");
+    // parse command line
+    auto options = parse_cl(wxApp::argc, wxApp::argv);
 
-    // and show it (the frames, unlike simple controls, are not shown when
-    // created initially)
-    frame->Show(true);
+    try {
 
-    // success: wxApp::OnRun() will be called which will enter the main message
-    // loop and the application will run. If we returned false here, the
-    // application would exit immediately.
+        // Create the AudioEngine
+        audio_engine_ = new AudioEngine();
+        audio_thread_.reset(audio_engine_->run());
+    } catch (std::exception e) {
+        wxLogMessage("Caught an exception when creating audio engine - %s", e.what());
+        
+    }
+
+        // create the main application window
+        AppFrame *frame = new AppFrame("kbDAW", options["project"].as<std::string>());
+
+        frame->Show(true);
+
+        wxLogMessage("Finished with kbDAWApp::OnInit");
+
     return true;
+}
+
+int kbDAWApp::OnExit() {
+
+
+    if (audio_engine_) {
+        audio_engine_->stop();
+        audio_thread_->join();
+
+        delete audio_engine_;
+        audio_engine_ = nullptr;
+    }
+
+    return 0;
+
 }

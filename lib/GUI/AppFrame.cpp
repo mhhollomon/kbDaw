@@ -1,9 +1,8 @@
 #include "AppFrame.hpp"
 
-wxBEGIN_EVENT_TABLE(AppFrame, wxFrame)
-    EVT_MENU(Minimal_Quit,  AppFrame::OnQuit)
-    EVT_MENU(Minimal_About, AppFrame::OnAbout)
-wxEND_EVENT_TABLE()
+#include "TimeLine.hpp"
+
+wxDEFINE_EVENT(EVT_OPEN_MODEL, OpenModelEvent);
 
 
 // ----------------------------------------------------------------------------
@@ -11,11 +10,16 @@ wxEND_EVENT_TABLE()
 // ----------------------------------------------------------------------------
 
 // frame constructor
-AppFrame::AppFrame(const wxString& title)
-       : wxFrame(nullptr, wxID_ANY, title)
+AppFrame::AppFrame(const wxString& title, const std::string& project_file)
+       : wxFrame(nullptr, wxID_ANY, title), logWindow(this, "Logging", true, false)
 {
     // set the frame icon
     SetIcon(wxICON(sample));
+
+    Bind(EVT_OPEN_MODEL, &AppFrame::OnOpenModel, this, OpenModelDest);
+    Bind(wxEVT_MENU, &AppFrame::OnQuit, this, kbDawQuit);
+    Bind(wxEVT_MENU, &AppFrame::OnAbout, this, kbDawAbout);
+
 
 #if wxUSE_MENUBAR
     // create a menu bar
@@ -23,9 +27,9 @@ AppFrame::AppFrame(const wxString& title)
 
     // the "About" item should be in the help menu
     wxMenu *helpMenu = new wxMenu;
-    helpMenu->Append(Minimal_About, "&About\tF1", "Show about dialog");
+    helpMenu->Append(kbDawAbout, "&About\tF1", "Show about dialog");
 
-    fileMenu->Append(Minimal_Quit, "E&xit\tAlt-X", "Quit this program");
+    fileMenu->Append(kbDawQuit, "E&xit\tAlt-X", "Quit this program");
 
     // now append the freshly created menu to the menu bar...
     wxMenuBar *menuBar = new wxMenuBar();
@@ -51,27 +55,35 @@ AppFrame::AppFrame(const wxString& title)
 
 wxBoxSizer *vbox = new wxBoxSizer(wxVERTICAL);
 
-auto * timeline = new wxPanel(this, -1);
-vbox->Add(timeline, wxSizerFlags().Proportion(1).Expand());
+timeline_ = new TimeLine(this, model_);
+vbox->Add(timeline_, wxSizerFlags().Proportion(1).Expand());
 
 auto * cmd = new wxTextCtrl(this, -1);
 vbox->Add(cmd, wxSizerFlags().Proportion(0).Expand());
 
 SetSizer(vbox);
 
+wxLogMessage("Hello, there");
+
+wxLogMessage("project_file = '%s'", project_file);
+
+QueueEvent(new OpenModelEvent(EVT_OPEN_MODEL, project_file));
+
 }
 
 
 // event handlers
 
-void AppFrame::OnQuit(wxCommandEvent& WXUNUSED(event))
+void AppFrame::OnQuit(wxCommandEvent& event)
 {
     // true is to force the frame to close
+    model_.close_model();
     Close(true);
 }
 
 void AppFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
 {
+    wxLogMessage("Got About Event");
     wxMessageBox(wxString::Format
                  (
                     "Welcome to kbDAW!\n"
@@ -84,4 +96,14 @@ void AppFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
                  "About kbDAW",
                  wxOK | wxICON_INFORMATION,
                  this);
+}
+
+void AppFrame::OnOpenModel(OpenModelEvent &event) {
+
+    wxLogMessage("Got OpenModelEvent in AppFrame");
+
+    model_.open_model(event.get_file_name());
+
+    timeline_->update();
+
 }
